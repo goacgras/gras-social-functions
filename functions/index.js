@@ -18,11 +18,10 @@ const firebaseConfig = {
 
 const firebase = require("firebase");
 firebase.initializeApp(firebaseConfig);
+const db = admin.firestore();
 
 app.get("/screams", (req, res) => {
-  admin
-    .firestore()
-    .collection("screams")
+  db.collection("screams")
     .orderBy("createdAt", "desc")
     .get()
     .then((data) => {
@@ -48,9 +47,7 @@ app.post("/scream", (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  admin
-    .firestore()
-    .collection("screams")
+  db.collection("screams")
     .add(newScream)
     .then((doc) => {
       res.json({ message: `document ${doc.id} created sucessfully` });
@@ -58,6 +55,43 @@ app.post("/scream", (req, res) => {
     .catch((err) => {
       res.status(500).json({ error: "Something went wrong" });
       console.error(err);
+    });
+});
+
+//Signup route
+app.post("/signup", (req, res) => {
+  const newUser = {
+    email: req.body.email,
+    password: req.body.password,
+    confirmPassword: req.body.confirmPassword,
+    handle: req.body.handle,
+  };
+
+  //TODO validate data
+  db.doc(`/users/${newUser.handle}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        return res.status(400).json({ handle: "this handle already taken" });
+      } else {
+        return firebase
+          .auth()
+          .createUserWithEmailAndPassword(newUser.email, newUser.password);
+      }
+    })
+    .then((data) => {
+      return data.user.getIdToken();
+    })
+    .then((token) => {
+      return res.status(201).json({ token });
+    })
+    .catch((err) => {
+      console.error(err);
+      if (err.code === "auth/email-already-in-use") {
+        return res.status(400).json({ email: "Email already exist" });
+      } else {
+        return res.status(500).json({ error: err.code });
+      }
     });
 });
 
