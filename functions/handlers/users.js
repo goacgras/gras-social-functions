@@ -138,55 +138,73 @@ exports.getAuthenticatedUser = (req, res) => {
       data.forEach((doc) => {
         userData.likes.push(doc.data());
       });
-      return res.json(userData);
-      // db
-      // .collection("notification")
-      // .where("userHandle", "==", req.user.handle)
-      // .orderBy("createdAt", "desc")
-      // .limit(10)
-      // .get();
+      return db
+        .collection("notifications")
+        .where("recipient", "==", req.user.handle)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
     })
-    // .then((data) => {
-    //   userData.notifications = [];
+    .then((data) => {
+      userData.notifications = [];
 
-    //   data.forEach((doc) => {
-    //     userData.notifications.push({
-    //       recipient: doc.data().recipient,
-    //       sender: doc.data().sender,
-    //       createdAt: doc.data().createdAt,
-    //       screamId: doc.data().screamId,
-    //       type: doc.data().type,
-    //       read: doc.data().read,
-    //       notificationId: doc.id,
-    //     });
-    //   });
-    //   return res.json(userData);
-    // })
+      data.forEach((doc) => {
+        userData.notifications.push({
+          recipient: doc.data().recipient,
+          sender: doc.data().sender,
+          createdAt: doc.data().createdAt,
+          screamId: doc.data().screamId,
+          type: doc.data().type,
+          read: doc.data().read,
+          notificationId: doc.id,
+        });
+      });
+      return res.json(userData);
+    })
     .catch((err) => {
       console.error(err);
       return res.status(500).json({ error: err.code });
     });
 };
 
-// //get user details
-// exports.getUserDetails = (req, res) => {
-//   let userData = {};
+//get users details (PUBLIC)
+exports.getUserDetails = (req, res) => {
+  let userData = {};
 
-//   db.doc(`/users/${req.params.handle}`)
-//     .get()
-//     .then((doc) => {
-//       if (doc.exists) {
-//         userData = doc.data();
-//         return db
-//           .collection("screams")
-//           .where("userHandle" === req.params.handle)
-//           .orderBy("createdAt", "desc")
-//           .get();
-//       } else {
-//         return res.status(404).json({ error: "user not found" });
-//       }
-//     });
-// };
+  db.doc(`/users/${req.params.handle}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        userData.user = doc.data();
+        return db
+          .collection("screams")
+          .where("userHandle", "==", req.params.handle)
+          .orderBy("createdAt", "desc")
+          .get();
+      } else {
+        return res.status(404).json({ error: "user not found" });
+      }
+    })
+    .then((data) => {
+      userData.screams = [];
+      data.forEach((doc) => {
+        userData.screams.push({
+          body: doc.data().body,
+          createdAt: doc.data().createdAt,
+          userHandle: doc.data().userHandle,
+          userImage: doc.data().userImage,
+          likeCount: doc.data().likeCount,
+          commentCount: doc.data().commentCount,
+          screamId: doc.id,
+        });
+      });
+      return res.json(userData);
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(404).json({ error: err.code });
+    });
+};
 
 //upload user image profile
 exports.uploadImage = (req, res) => {
@@ -206,6 +224,7 @@ exports.uploadImage = (req, res) => {
 
     //extract the extension of the file ex. image.JPEG
     const imageExtension = filename.split(".")[filename.split(".").length - 1];
+
     //123213213.JPEG
     imageFileName = `${Math.round(Math.random() * 10000000)}.${imageExtension}`;
     const filePath = path.join(os.tmpdir(), imageFileName);
@@ -237,4 +256,21 @@ exports.uploadImage = (req, res) => {
       });
   });
   busboy.end(req.rawBody);
+};
+
+exports.markNotificationsRead = (req, res) => {
+  let batch = db.batch();
+  req.body.forEach((notificationId) => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, { read: true });
+  });
+  batch
+    .commit()
+    .then(() => {
+      return res.json({ message: "Notifications mark read" });
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
 };
