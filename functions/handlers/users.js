@@ -61,7 +61,9 @@ exports.signup = (req, res) => {
       if (err.code === "auth/email-already-in-use") {
         return res.status(400).json({ email: "Email already exist" });
       } else {
-        return res.status(500).json({ error: err.code });
+        return res
+          .status(500)
+          .json({ general: "something went wrong please try again" });
       }
     });
 };
@@ -258,6 +260,7 @@ exports.uploadImage = (req, res) => {
   busboy.end(req.rawBody);
 };
 
+//changing all database field at the same time
 exports.markNotificationsRead = (req, res) => {
   let batch = db.batch();
   req.body.forEach((notificationId) => {
