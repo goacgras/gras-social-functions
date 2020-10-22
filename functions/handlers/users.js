@@ -97,7 +97,7 @@ exports.login = (req, res) => {
       } else if (err.code === "auth/user-not-found") {
         return res
           .status(403)
-          .json({ user: "user not found, please try again" });
+          .json({ general: "user not found, please try again" });
       } else {
         return res.status(500).json({ error: err.code });
       }
